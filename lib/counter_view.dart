@@ -42,6 +42,13 @@ class _CounterViewState extends State<CounterView> {
             Text('${_controller.value}', style: const TextStyle(fontSize: 40)),
             const SizedBox( height: 30), // Spasi antara elemen
             const Divider(),  // Garis pemisah
+
+            const Text("5 Aktivitas Terakhir:", style: TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 10),
+            ..._controller.activityLogs.map((log) => Padding(
+              padding: const EdgeInsets.all(4.0), // Jarak antar teks
+              child: Text(log, style: const TextStyle(color: Colors.grey)),
+            )),
           ],
         ),
       ),
