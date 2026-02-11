@@ -1,16 +1,18 @@
-# logbook_app
+# Simple Counter App (Implementasi SRP)
 
-A new Flutter project.
+Proyek ini adalah aplikasi Counter sederhana yang dikembangkan menggunakan Flutter. Fokus utama dari pengembangan aplikasi ini adalah penerapan prinsip **Single Responsibility Principle (SRP)**, di mana logika bisnis dan antarmuka pengguna (UI) dipisahkan secara tegas.
 
-## Getting Started
+## Refleksi: Mengapa Menerapkan SRP?
 
-This project is a starting point for a Flutter application.
+Penerapan SRP dalam proyek ini memberikan dampak positif pada alur kerja, membuat pengembangan lebih terstruktur dan meminimalisir risiko *bug* pada kode yang sudah berjalan.
 
-A few resources to get you started if this is your first Flutter project:
+Berikut adalah manfaat spesifik yang kami rasakan saat menambahkan fitur *History Logger*:
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+1.  **Fokus pada Logika (Controller)**
+    Saat mengimplementasikan fitur pembatasan riwayat log (maksimal 5 aktivitas terakhir), kami hanya perlu fokus menulis kode pada `Controller`. Kami dapat menyusun logika data tanpa terdistraksi oleh urusan desain atau bagaimana data tersebut akan ditampilkan.
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+2.  **Fokus pada Tampilan (View)**
+    Saat memberikan *feedback* visual (seperti warna hijau untuk "Tambah" dan merah untuk "Kurang"), kami cukup memodifikasi bagian `View`. Hal ini dilakukan tanpa menyentuh atau mengubah satu baris pun logika bisnis yang ada di `Controller`.
+
+3.  **Keamanan dan Stabilitas Kode**
+    Pemisahan ini menjamin bahwa penambahan fitur baru (*logging*) tidak mengganggu fungsionalitas utama (*counter*). Fitur perhitungan tetap berjalan aman karena kodenya terisolasi dari perubahan yang terjadi pada fitur riwayat.

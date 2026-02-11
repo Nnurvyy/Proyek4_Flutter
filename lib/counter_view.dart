@@ -10,6 +10,52 @@ class CounterView extends StatefulWidget {
 class _CounterViewState extends State<CounterView> {
   final CounterController _controller = CounterController();
 
+  Color _getLogColor (String log) {
+    if (log.contains("menambahkan")) {
+      return Colors.green;
+    } else if (log.contains("mengurangi")) {
+      return Colors.red;
+    } else if (log.contains("Reset")) {
+      return Colors.orange;
+    }
+    return Colors.black;
+  }
+
+  void _showResetConfirmation() {
+    showDialog(
+      context : context, 
+      builder: (context) => AlertDialog(
+        title: const Text("Konfirmasi Reset"),
+        content: const Text("Apakah Anda yakin ingin mereset counter?"),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop(); // Tutup dialog
+            },
+            child: const Text("Batal"),
+          ),
+          TextButton(
+            onPressed: () {
+              setState(() {
+                _controller.reset();
+              });
+              Navigator.of(context).pop(); // Tutup dialog setelah reset
+
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar (
+                  content: Text("Counter telah direset."),
+                  duration: Duration(seconds: 2),
+                  behavior: SnackBarBehavior.floating
+                )
+              );
+            },
+            child: const Text("Reset"),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -47,7 +93,7 @@ class _CounterViewState extends State<CounterView> {
             const SizedBox(height: 10),
             ..._controller.activityLogs.map((log) => Padding(
               padding: const EdgeInsets.all(4.0), // Jarak antar teks
-              child: Text(log, style: const TextStyle(color: Colors.grey)),
+              child: Text(log, style: TextStyle(color: _getLogColor(log))),
             )),
           ],
         ),
@@ -59,17 +105,26 @@ class _CounterViewState extends State<CounterView> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             FloatingActionButton(
+              heroTag: "btn_dec",
               onPressed: () => setState(() => _controller.decrement()),
-              child: const Icon(Icons.remove),
+              backgroundColor: Colors.red[50],
+              child: const Icon(Icons.remove, color: Colors.red),
             ),
+            
+            // TOMBOL RESET DENGAN DIALOG
             FloatingActionButton(
-              onPressed: () => setState(() => _controller.reset()),
-              child: const Icon(Icons.refresh),
+              heroTag: "btn_reset",
+              onPressed: _showResetConfirmation, // Panggil fungsi dialog
+              backgroundColor: Colors.orange[50],
+              child: const Icon(Icons.refresh, color: Colors.orange),
             ),
+            
             FloatingActionButton(
+              heroTag: "btn_inc",
               onPressed: () => setState(() => _controller.increment()),
-              child: const Icon(Icons.add),
-            )
+              backgroundColor: Colors.green[50],
+              child: const Icon(Icons.add, color: Colors.green),
+            ),
           ]
         ),
       ),
