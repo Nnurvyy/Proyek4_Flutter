@@ -1,4 +1,5 @@
 import 'package:intl/intl.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class CounterController {
   int _counter = 0;
@@ -9,6 +10,21 @@ class CounterController {
   int get value => _counter;
   int get step => _step;
 
+
+  static const String _keyCounter = 'counter_value';
+  static const String _keyLogs = 'activity_logs';
+
+  Future<void> loadData() async {
+    final prefs = await SharedPreferences.getInstance();
+    _counter = prefs.getInt(_keyCounter) ?? 0;
+    _activityLogs = prefs.getStringList(_keyLogs) ?? [];
+  }
+
+  Future<void> _saveData() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(_keyCounter, _counter);
+    await prefs.setStringList(_keyLogs, _activityLogs);
+  }
   void _addLog(String action){
     DateTime now = DateTime.now();
     String formattedTime = DateFormat('HH:mm').format(now);
@@ -21,6 +37,7 @@ class CounterController {
   void increment(){
     _counter+=_step;
     _addLog("User menambahkan nilai sebesar +$_step");
+    _saveData();
   } 
 
   void decrement() {
@@ -28,13 +45,14 @@ class CounterController {
       _counter -= _step;
     }
     _addLog("User mengurangi nilai sebesar -$_step");
+    _saveData();
   } 
   void reset() {
     _counter = 0;
     _addLog("User melakukan Reset counter");
+    _saveData();
   } 
   void updateStep(double newStep) {
     _step = newStep.round();
-    _addLog("User mengubah step menjadi $_step");
   } 
 }

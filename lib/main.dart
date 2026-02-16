@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 // Pastikan file tempat CounterView berada di-import di sini
-import 'counter_view.dart'; 
+import 'package:logbook_app/features/onboarding/onboarding_view.dart'; 
 
 void main() {
   runApp(const MyApp());
@@ -13,12 +13,12 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'Flutter SRP Counter',
+      title: 'LogBook App',
       theme: ThemeData(
         primarySwatch: Colors.blue,
         useMaterial3: true,
       ),
-      home: const CounterView(), 
+      home: const OnBoardingView(), 
     );
   }
 }
