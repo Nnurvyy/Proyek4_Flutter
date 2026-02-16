@@ -11,21 +11,37 @@ class CounterView extends StatefulWidget {
 }
 
 class _CounterViewState extends State<CounterView> {
-  final CounterController _controller = CounterController();
-
+ 
+  late CounterController _controller;
   bool _isLoading = true; 
 
   @override
   void initState() {
     super.initState();
+    _controller = CounterController(widget.username);
     _loadInitialData();
   }
 
   void _loadInitialData() async {
     await _controller.loadData();
-    setState(() {
-      _isLoading = false;
-    });
+    if (mounted) {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  String _getGreeting() {
+    var hour = DateTime.now().hour;
+    if (hour >= 0 && hour < 11) {
+      return "Selamat Pagi";
+    } else if (hour >= 11 && hour < 15) {
+      return "Selamat Siang";
+    } else if (hour >= 15 && hour < 18) {
+      return "Selamat Sore";
+    } else {
+      return "Selamat Malam";
+    }
   }
 
   Color _getLogColor (String log) {
@@ -78,7 +94,18 @@ class _CounterViewState extends State<CounterView> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text("LogBook: ${widget.username}"),
+        title: Column(
+          children : [
+            Text(
+              "${_getGreeting()}, ${widget.username}!",
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const Text(
+              "LogBook App",
+              style: TextStyle(fontSize: 12),
+            ),
+          ],
+        ),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         actions: [
           IconButton(

@@ -2,6 +2,11 @@ import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class CounterController {
+
+  final String username;
+
+  CounterController(this.username);
+
   int _counter = 0;
   int _step = 1;
   List<String> _activityLogs = [];
@@ -11,8 +16,8 @@ class CounterController {
   int get step => _step;
 
 
-  static const String _keyCounter = 'counter_value';
-  static const String _keyLogs = 'activity_logs';
+  String get _keyCounter => 'counter_$username';
+  String get _keyLogs => 'logs_$username';
 
   Future<void> loadData() async {
     final prefs = await SharedPreferences.getInstance();
