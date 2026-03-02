@@ -1,31 +1,37 @@
+import 'package:mongo_dart/mongo_dart.dart';
+
 class LogModel {
+  final ObjectId? id; 
   final String title;
   final String description;
-  DateTime timestamp;
-  final String category;
+  final DateTime date;
+  final String category; 
 
   LogModel({
-    required this.title,
-    required this.description,
-    required this.timestamp,
-    required this.category,
+    this.id, 
+    required this.title, 
+    required this.description, 
+    required this.date,
+    required this.category, 
   });
-
-  factory LogModel.fromMap(Map<String, dynamic> map) {
-    return LogModel(
-      title: map['title'],
-      description: map['description'],
-      timestamp: DateTime.parse(map['timestamp']),
-      category: map['category'] ?? 'Pribadi',
-    );
-  }
 
   Map<String, dynamic> toMap() {
     return {
-      'title': title, 
+      '_id': id ?? ObjectId(), 
+      'title': title,
       'description': description,
-      'timestamp': timestamp.toIso8601String(),
-      'category': category,
+      'date': date.toIso8601String(),
+      'category': category, 
     };
+  }
+
+  factory LogModel.fromMap(Map<String, dynamic> map) {
+    return LogModel(
+      id: map['_id'] as ObjectId?,
+      title: map['title'] ?? '',
+      description: map['description'] ?? '',
+      date: map['date'] != null ? DateTime.parse(map['date']) : DateTime.now(),
+      category: map['category'] ?? 'Pribadi', 
+    );
   }
 }

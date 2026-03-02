@@ -1,69 +1,96 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:mongo_dart/mongo_dart.dart';
 import 'package:logbook_app/features/logbook/models/log_model.dart';
+// Pastikan path ini sesuai
+import '../../services/mongo_service.dart';
+import '../../helpers/log_helper.dart';
 
 class LogController {
-  final ValueNotifier<List<LogModel>> logsNotifier = ValueNotifier([]);
+  final ValueNotifier<List<LogModel>> logsNotifier = ValueNotifier<List<LogModel>>([]);
 
-  final ValueNotifier<List<LogModel>> filteredLogs = ValueNotifier([]);
-  static const String _storageKey = 'users_logs_data';
+  static const String _storageKey = 'user_logs_data';
+  List<LogModel> get logs => logsNotifier.value;
 
-  LogController() { loadFromDisk(); }
-
-  void searchLog(String query) {
-    if (query.isEmpty) {
-      filteredLogs.value = logsNotifier.value;
-    } else {
-      filteredLogs.value = logsNotifier.value
-      .where((log) => log.title.toLowerCase().contains(query.toLowerCase())).toList();
-    }
+  LogController() {
+    loadFromDisk();
   }
 
-  void addLog(String title, String desc, String category) {
-    final newLog = LogModel(title: title, description: desc, timestamp : DateTime.now(), category: category,);
-    logsNotifier.value = [...logsNotifier.value, newLog];
-    filteredLogs.value = logsNotifier.value;
-    saveToDisk();
-  }
+ 
+  Future<void> addLog(String title, String desc, String category) async {
+    final newLog = LogModel(
+      id: ObjectId(),
+      title: title,
+      description: desc,
+      date: DateTime.now(),
+      category: category, 
+    );
 
-  void updateLog(DateTime id, String title, String desc, String category) {
-    final currentLogs = List<LogModel>.from(logsNotifier.value);
-    final index = currentLogs.indexWhere((log) => log.timestamp == id);
+    try {
+      await MongoService().insertLog(newLog);
 
-    if (index != -1) {
-      currentLogs[index] = LogModel(title: title, description: desc, timestamp: id, category: category);
+      final currentLogs = List<LogModel>.from(logsNotifier.value);
+      currentLogs.add(newLog);
       logsNotifier.value = currentLogs;
-      filteredLogs.value = currentLogs; 
-      saveToDisk();
+
+      await LogHelper.writeLog("SUCCESS: Tambah data dengan ID lokal", source: "log_controller.dart");
+    } catch (e) {
+      await LogHelper.writeLog("ERROR: Gagal sinkronisasi Add - $e", level: 1);
     }
   }
 
-  void removeLog(DateTime id) {
+  
+  Future<void> updateLog(int index, String newTitle, String newDesc, String newCategory) async {
     final currentLogs = List<LogModel>.from(logsNotifier.value);
-    currentLogs.removeWhere((log) => log.timestamp == id);
-    logsNotifier.value = currentLogs;
+    final oldLog = currentLogs[index];
 
-    final currentFiltered = List<LogModel>.from(filteredLogs.value);
-    currentFiltered.removeWhere((log) => log.timestamp == id);
-    filteredLogs.value = currentFiltered;
+    final updatedLog = LogModel(
+      id: oldLog.id, 
+      title: newTitle,
+      description: newDesc,
+      date: DateTime.now(),
+      category: newCategory, 
+    );
 
-    saveToDisk();
+    try {
+      await MongoService().updateLog(updatedLog);
+
+      currentLogs[index] = updatedLog;
+      logsNotifier.value = currentLogs;
+
+      await LogHelper.writeLog("SUCCESS: Sinkronisasi Update Berhasil", source: "log_controller.dart", level: 2);
+    } catch (e) {
+      await LogHelper.writeLog("ERROR: Gagal sinkronisasi Update - $e", source: "log_controller.dart", level: 1);
+    }
   }
 
-  void saveToDisk() async {
+  Future<void> removeLog(int index) async {
+    final currentLogs = List<LogModel>.from(logsNotifier.value);
+    final targetLog = currentLogs[index];
+
+    try {
+      if (targetLog.id == null) throw Exception("ID Log tidak ditemukan.");
+
+      await MongoService().deleteLog(targetLog.id!);
+
+      currentLogs.removeAt(index);
+      logsNotifier.value = currentLogs;
+
+      await LogHelper.writeLog("SUCCESS: Sinkronisasi Hapus Berhasil", source: "log_controller.dart", level: 2);
+    } catch (e) {
+      await LogHelper.writeLog("ERROR: Gagal sinkronisasi Hapus - $e", source: "log_controller.dart", level: 1);
+    }
+  }
+
+  Future<void> saveToDisk() async {
     final prefs = await SharedPreferences.getInstance();
-    final String encodedData = jsonEncode(logsNotifier.value.map((e) => e.toMap()).toList());
+    final String encodedData = jsonEncode(logsNotifier.value.map((log) => log.toMap()).toList());
     await prefs.setString(_storageKey, encodedData);
   }
 
   Future<void> loadFromDisk() async {
-    final prefs = await SharedPreferences.getInstance();
-    final String? data = prefs.getString(_storageKey);
-    if (data != null) {
-      final List decoded = jsonDecode(data);
-      logsNotifier.value = decoded.map((e) => LogModel.fromMap(e)).toList();
-      filteredLogs.value = logsNotifier.value;
-    }
+    final cloudData = await MongoService().getLogs();
+    logsNotifier.value = cloudData;
   }
 }
