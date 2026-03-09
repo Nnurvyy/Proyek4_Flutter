@@ -2,13 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:logbook_app/features/logbook/models/log_model.dart';
 import 'package:logbook_app/features/logbook/log_controller.dart'; 
 import 'package:logbook_app/features/auth/login_view.dart';
+import 'package:logbook_app/services/access_control_service.dart';
+import 'package:logbook_app/features/logbook/log_editor_page.dart'; 
 import 'package:intl/intl.dart'; 
 import 'package:intl/date_symbol_data_local.dart'; 
 import '../../services/mongo_service.dart';
 
 class LogView extends StatefulWidget {
-  final String username;
-  const LogView({super.key, required this.username});
+  final dynamic currentUser; 
+  
+  const LogView({super.key, required this.currentUser});
 
   @override
   State<LogView> createState() => _LogViewState();
@@ -17,13 +20,10 @@ class LogView extends StatefulWidget {
 class _LogViewState extends State<LogView> {
 
   late LogController _controller;
-  final TextEditingController _titleController = TextEditingController();
-  final TextEditingController _contentController = TextEditingController();
   
   bool _isLoading = false; 
   bool _isOffline = false;
   String _searchQuery = ""; 
-  String _selectedCategory = "Pribadi";
 
   @override
   void initState() {
@@ -37,25 +37,36 @@ class _LogViewState extends State<LogView> {
       _isLoading = true;
       _isOffline = false; 
     });
+
+    final String teamId = widget.currentUser['teamId'] ?? 'default_team';
+
     try {
       await initializeDateFormatting('id_ID', null);
+      
+      // 1. Coba koneksi ke MongoDB terlebih dahulu
       await MongoService().connect().timeout(
-        const Duration(seconds: 15),
+        const Duration(seconds: 5), // Saya perkecil jadi 5 detik agar saat offline tidak nunggu loading kelamaan
         onTimeout: () => throw Exception("Timeout"),
       );
-      await _controller.loadFromDisk();
+      
     } catch (e) {
       setState(() => _isOffline = true); 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text("⚠️ Offline Mode: Gagal terhubung ke Cloud."),
+            content: Text("⚠️ Offline Mode: Menggunakan data lokal."),
             backgroundColor: Colors.orange,
             behavior: SnackBarBehavior.floating,
           ),
         );
       }
     } finally {
+      // 2. [PERBAIKAN UTAMA] 
+      // Pindahkan loadLogs ke dalam blok 'finally' agar fungsi ini 
+      // TETAP DIPANGGIL baik saat online maupun offline!
+      await _controller.loadLogs(teamId);
+
+      // Setelah data lokal selesai dimuat, matikan loading spinner
       if (mounted) setState(() => _isLoading = false);
     }
   }
@@ -63,7 +74,8 @@ class _LogViewState extends State<LogView> {
   Future<void> _refreshData() async {
     setState(() => _isOffline = false); 
     try {
-      await _controller.loadFromDisk();
+      final String teamId = widget.currentUser['teamId'] ?? 'default_team';
+      await _controller.loadLogs(teamId);
     } catch (e) {
       setState(() => _isOffline = true); 
       if (mounted) {
@@ -78,11 +90,9 @@ class _LogViewState extends State<LogView> {
     }
   }
 
-
   String _formatDateTime(DateTime date) {
     final now = DateTime.now();
     final difference = now.difference(date);
-
    
     if (difference.inMinutes < 1) {
       return "Baru saja";
@@ -97,87 +107,41 @@ class _LogViewState extends State<LogView> {
 
   Color _getCategoryColor(String category) {
     switch (category) {
-      case 'Urgent': return Colors.red.shade100;
-      case 'Pekerjaan': return Colors.blue.shade100;
-      case 'Pribadi': default: return Colors.green.shade100;
+      case 'Mechanical': return Colors.green.shade100; // Hijau untuk Mechanical (sesuai instruksi)
+      case 'Electronic': return Colors.blue.shade100;  // Biru untuk Electronic (sesuai instruksi)
+      case 'Software': return Colors.purple.shade100;  // Warna lain untuk software
+      default: return Colors.grey.shade100;
     }
   }
 
-  void _showLogDialog({LogModel? existingLog, int? index}) {
-    final bool isEdit = existingLog != null && index != null;
-    
-    if (isEdit) {
-      _titleController.text = existingLog.title;
-      _contentController.text = existingLog.description;
-      _selectedCategory = existingLog.category; 
-    } else {
-      _titleController.clear();
-      _contentController.clear();
-      _selectedCategory = 'Pribadi'; 
-    }
-
-    showDialog(
-      context: context,
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setStateDialog) {
-            return AlertDialog(
-              title: Text(isEdit ? "Edit Catatan" : "Tambah Catatan Baru"),
-              content: Column(
-                mainAxisSize: MainAxisSize.min, 
-                children: [
-                  TextField(
-                    controller: _titleController,
-                    decoration: const InputDecoration(hintText: "Judul Catatan"),
-                  ),
-                  TextField(
-                    controller: _contentController,
-                    decoration: const InputDecoration(hintText: "Isi Deskripsi"),
-                  ),
-                  const SizedBox(height: 16),
-                  DropdownButtonFormField<String>(
-                    value: _selectedCategory,
-                    decoration: const InputDecoration(labelText: "Kategori"),
-                    items: ['Pekerjaan', 'Pribadi', 'Urgent'].map((String category) {
-                      return DropdownMenuItem(value: category, child: Text(category));
-                    }).toList(),
-                    onChanged: (String? newValue) {
-                      if (newValue != null) {
-                        setStateDialog(() { _selectedCategory = newValue; });
-                      }
-                    },
-                  ),
-                ],
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context), 
-                  child: const Text("Batal")
-                ),
-                ElevatedButton(
-                  onPressed: () {
-                    if (isEdit) {
-                      _controller.updateLog(index, _titleController.text, _contentController.text, _selectedCategory);
-                    } else {
-                      _controller.addLog(_titleController.text, _contentController.text, _selectedCategory);
-                    }
-                    Navigator.pop(context);
-                  },
-                  child: Text(isEdit ? "Update" : "Simpan"),
-                ),
-              ],
-            );
-          }
-        );
-      },
+  void _goToEditor({LogModel? log, int? index}) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => LogEditorPage(
+          log: log,
+          index: index,
+          controller: _controller,
+          currentUser: widget.currentUser, 
+        ),
+      ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    final String currentUserRole = widget.currentUser['role'] ?? 'Anggota';
+    final String currentUserId = widget.currentUser['uid'] ?? 'unknown_user';
+    final String currentUsername = widget.currentUser['username'] ?? 'User';
+
+    final bool canCreate = AccessControlService.canPerform(
+      currentUserRole, 
+      AccessControlService.actionCreate
+    );
+
     return Scaffold(
       appBar: AppBar(
-        title: Text('Logbook: ${widget.username}'),
+        title: Text('Logbook: $currentUsername'),
         actions: [
           IconButton(
             icon: const Icon(Icons.logout),
@@ -246,27 +210,60 @@ class _LogViewState extends State<LogView> {
                   );
                 }
 
-                final currentLogs = logs.where((log) => 
-                  log.title.toLowerCase().contains(_searchQuery.toLowerCase())
-                ).toList();
-
+                // ==========================================
+                // TASK 5 (HINT 2): FILTER VISIBILITAS DATA
+                // Tampilkan data JIKA: Pencarian Cocok DAN (Saya Pemiliknya ATAU Catatan Publik)
+                // ==========================================
+                final currentLogs = logs.where((log) {
+                  final matchesSearch = log.title.toLowerCase().contains(_searchQuery.toLowerCase()) || 
+                      log.description.toLowerCase().contains(_searchQuery.toLowerCase());
+                  final canSee = (log.authorId == currentUserId) || (log.isPublic == true);
+                  return matchesSearch && canSee;
+                }).toList();
                 if (currentLogs.isEmpty) {
                   return RefreshIndicator(
                     onRefresh: _refreshData,
                     child: ListView(
+                      // physics ini WAJIB ada agar layar tetap bisa ditarik ke bawah meski kosong
                       physics: const AlwaysScrollableScrollPhysics(),
                       children: [
-                        SizedBox(height: MediaQuery.of(context).size.height * 0.3),
-                        const Icon(Icons.cloud_off, size: 64, color: Colors.grey),
+                        SizedBox(height: MediaQuery.of(context).size.height * 0.25),
+                        
+                        // 1. Ilustrasi/Ikon yang lebih relevan dan menarik
+                        const Icon(
+                          Icons.assignment_add, 
+                          size: 80, 
+                          color: Colors.blueGrey
+                        ),
                         const SizedBox(height: 16),
-                        const Center(child: Text("Belum ada catatan di Cloud.")),
-                        const SizedBox(height: 16),
-                        Center(
-                          child: ElevatedButton(
-                            onPressed: () => _showLogDialog(),
-                            child: const Text("Buat Catatan Pertama"),
+                        
+                        // 2. Teks instruksional sesuai dengan permintaan tugas
+                        const Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 32.0),
+                          child: Text(
+                            "Belum ada aktivitas hari ini?\nMulai catat kemajuan proyek Anda!",
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 16, 
+                              color: Colors.black54,
+                              height: 1.5, // Memberikan jarak antar baris agar rapi
+                            ),
                           ),
                         ),
+                        const SizedBox(height: 24),
+                        
+                        // 3. Tombol CTA (Call to Action)
+                        if (canCreate)
+                          Center(
+                            child: ElevatedButton.icon(
+                              onPressed: () => _goToEditor(),
+                              icon: const Icon(Icons.add),
+                              label: const Text("Buat Catatan"),
+                              style: ElevatedButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                              ),
+                            ),
+                          ),
                       ],
                     ),
                   );
@@ -281,46 +278,72 @@ class _LogViewState extends State<LogView> {
                       final log = currentLogs[index];
                       final realIndex = logs.indexOf(log);
                       
-                      return Dismissible(
-                        key: Key(log.id?.toHexString() ?? log.date.toIso8601String()), 
-                        direction: DismissDirection.endToStart,
-                        background: Container(
-                          color: Colors.red,
-                          alignment: Alignment.centerRight,
-                          padding: const EdgeInsets.symmetric(horizontal: 20),
-                          child: const Icon(Icons.delete, color: Colors.white),
-                        ),
-                        onDismissed: (direction) {
-                          _controller.removeLog(realIndex); 
-                        },
-                        child: Card(
-                          color: _getCategoryColor(log.category),
-                          margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                          child: ListTile(
-                            leading: Icon(
-                              Icons.circle, 
-                              color: log.category == 'Urgent' ? Colors.red : Colors.blue, 
-                              size: 16
-                            ),
-                            title: Text(log.title, style: const TextStyle(fontWeight: FontWeight.bold)),
-                            subtitle: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start, 
-                              children: [
-                                Text(log.description),
-                                const SizedBox(height: 4),
-                                Text(
-                                  "${log.category} • ${_formatDateTime(log.date)}",
-                                  style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
-                                ),
-                              ],
-                            ),
-                            trailing: IconButton(
-                              icon: const Icon(Icons.edit, color: Colors.black54),
-                              onPressed: () => _showLogDialog(existingLog: log, index: realIndex),
-                            ),
+                      final bool isOwner = (log.authorId == currentUserId);
+
+                      // ==========================================
+                      // TASK 5 (HINT 3): KEDAULATAN EDITOR
+                      // Akses Edit & Delete sekarang MURNI hanya untuk Owner. Abaikan role Ketua.
+                      // ==========================================
+                      final bool canModify = isOwner; 
+
+                      Widget logCard = Card(
+                        color: _getCategoryColor(log.category),
+                        margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        child: ListTile(
+                          // ==========================================
+                          // TASK 4 (POIN 3): CONNECTIVITY AWARENESS
+                          // Ikon Awan Hijau jika sudah sync, Awan Oranye jika masih pending
+                          // ==========================================
+                          leading: Icon(
+                            log.isSynced ? Icons.cloud_done : Icons.cloud_upload_outlined,
+                            color: log.isSynced ? Colors.green : Colors.orange,
                           ),
+                          title: Text(log.title, style: const TextStyle(fontWeight: FontWeight.bold)),
+                          subtitle: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start, 
+                            children: [
+                              Text(log.description),
+                              const SizedBox(height: 4),
+                              // Menambahkan Indikator Teks Public/Private
+                              Text(
+                                "${log.category} • ${_formatDateTime(log.date)} • ${log.isPublic ? '🌐 Public' : '🔒 Private'}",
+                                style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+                              ),
+                            ],
+                          ),
+                          // Hanya owner yang bisa melihat tombol edit
+                          trailing: canModify 
+                            ? IconButton(
+                                icon: const Icon(Icons.edit, color: Colors.black54),
+                                onPressed: () => _goToEditor(log: log, index: realIndex), 
+                              )
+                            : null, 
                         ),
                       );
+
+                      // Hanya owner yang bisa menggeser untuk menghapus
+                      if (canModify) {
+                        return Dismissible(
+                          key: Key(log.id ?? log.date.toIso8601String()),
+                          direction: DismissDirection.endToStart,
+                          background: Container(
+                            color: Colors.red,
+                            alignment: Alignment.centerRight,
+                            padding: const EdgeInsets.symmetric(horizontal: 20),
+                            child: const Icon(Icons.delete, color: Colors.white),
+                          ),
+                          onDismissed: (direction) {
+                            _controller.removeLog(
+                              realIndex, 
+                              currentUserRole, 
+                              currentUserId
+                            ); 
+                          },
+                          child: logCard,
+                        );
+                      }
+
+                      return logCard;
                     },
                   ),
                 );
@@ -329,10 +352,12 @@ class _LogViewState extends State<LogView> {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => _showLogDialog(),
-        child: const Icon(Icons.add),
-      ),
+      floatingActionButton: canCreate 
+        ? FloatingActionButton(
+            onPressed: () => _goToEditor(), 
+            child: const Icon(Icons.add),
+          ) 
+        : null, 
     );
   }
 }

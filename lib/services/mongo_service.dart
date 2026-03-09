@@ -64,17 +64,18 @@ class MongoService {
   }
 
   /// READ: Mengambil data dari Cloud
-  Future<List<LogModel>> getLogs() async {
+  /// READ: Mengambil data dari Cloud
+  Future<List<LogModel>> getLogs(String teamId) async {
     try {
-      final collection = await _getSafeCollection(); // Gunakan jalur aman
+      final collection = await _getSafeCollection(); 
 
       await LogHelper.writeLog(
-        "INFO: Fetching data from Cloud...",
+        "INFO: Fetching data from Team: $teamId",
         source: _source,
         level: 3,
       );
 
-      final List<Map<String, dynamic>> data = await collection.find().toList();
+      final List<Map<String, dynamic>> data = await collection.find(where.eq('teamId', teamId)).toList();
       return data.map((json) => LogModel.fromMap(json)).toList();
     } catch (e) {
       await LogHelper.writeLog(
@@ -82,10 +83,12 @@ class MongoService {
         source: _source,
         level: 1,
       );
-      return [];
+      // [PERBAIKAN UTAMA DI SINI]
+      // Jangan gunakan "return [];". Lemparkan error agar ditangkap oleh LogController!
+      throw Exception("Gagal mengambil data dari Cloud karena jaringan terputus."); 
     }
   }
-
+  
   /// CREATE: Menambahkan data baru
   Future<void> insertLog(LogModel log) async {
     try {
@@ -111,10 +114,12 @@ class MongoService {
   Future<void> updateLog(LogModel log) async {
     try {
       final collection = await _getSafeCollection();
-      if (log.id == null)
-        throw Exception("ID Log tidak ditemukan untuk update");
+      if (log.id == null) throw Exception("ID Log tidak ditemukan untuk update");
 
-      await collection.replaceOne(where.id(log.id!), log.toMap());
+      // [PERBAIKAN] Konversi id (String) kembali menjadi ObjectId untuk pencarian di Mongo
+      final objectId = ObjectId.fromHexString(log.id!);
+
+      await collection.replaceOne(where.id(objectId), log.toMap());
 
       await LogHelper.writeLog(
         "DATABASE: Update '${log.title}' Berhasil",
@@ -132,10 +137,15 @@ class MongoService {
   }
 
   /// DELETE: Menghapus dokumen
-  Future<void> deleteLog(ObjectId id) async {
+  // [PERBAIKAN] Ubah parameter dari (ObjectId id) menjadi (String id)
+  Future<void> deleteLog(String id) async {
     try {
       final collection = await _getSafeCollection();
-      await collection.remove(where.id(id));
+      
+      // [PERBAIKAN] Konversi id (String) kembali menjadi ObjectId
+      final objectId = ObjectId.fromHexString(id);
+      
+      await collection.remove(where.id(objectId));
 
       await LogHelper.writeLog(
         "DATABASE: Hapus ID $id Berhasil",

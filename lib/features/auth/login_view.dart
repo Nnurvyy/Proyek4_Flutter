@@ -53,10 +53,20 @@ class _LoginViewState extends State<LoginView> {
           _failedAttempts = 0; 
         });
 
+        // TODO: Buat objek map sementara untuk user yang login. 
+        // Nantinya data ini seharusnya diambil dari response backend/database.
+        final Map<String, dynamic> userData = {
+          'uid': 'id_user_123',        // Mock UID
+          'username': user,            // Username dari inputan form
+          'role': 'Anggota',           // Mock Role (Ketua/Anggota/Asisten)
+          'teamId': 'team_01',         // Mock Team ID
+        };
+
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (context) => LogView(username: user),
+            // UBAH BARIS INI: Gunakan currentUser, bukan username
+            builder: (context) => LogView(currentUser: userData),
           ),
         );
       } else {
