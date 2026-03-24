@@ -32,7 +32,7 @@ class _LoginViewState extends State<LoginView> {
   void dispose() {
     _userController.dispose();
     _passController.dispose();
-    _lockoutTimer?.cancel(); // Pastikan timer dimatikan saat widget dihancurkan
+    _lockoutTimer?.cancel(); 
     super.dispose();
   }
 
@@ -40,32 +40,24 @@ class _LoginViewState extends State<LoginView> {
     // Jika sedang terkunci, jangan lakukan apa-apa
     if (_isLockedOut) return;
 
-    // 2. Security Logic: Validasi Field tidak boleh kosong
+    // Security Logic: Validasi Field tidak boleh kosong
     if (_formKey.currentState!.validate()) {
       String user = _userController.text;
       String pass = _passController.text;
 
-      bool isSuccess = _controller.login(user, pass);
+      // [PERBAIKAN]: Memanggil login() yang mengembalikan Map data user atau null
+      final Map<String, dynamic>? userData = _controller.login(user, pass);
 
-      if (isSuccess) {
+      if (userData != null) {
         // Reset counter jika berhasil
         setState(() {
           _failedAttempts = 0; 
         });
 
-        // TODO: Buat objek map sementara untuk user yang login. 
-        // Nantinya data ini seharusnya diambil dari response backend/database.
-        final Map<String, dynamic> userData = {
-          'uid': 'id_user_123',        // Mock UID
-          'username': user,            // Username dari inputan form
-          'role': 'Anggota',           // Mock Role (Ketua/Anggota/Asisten)
-          'teamId': 'team_01',         // Mock Team ID
-        };
-
+        // Berpindah ke halaman LogView dengan membawa data user asli dari Controller
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            // UBAH BARIS INI: Gunakan currentUser, bukan username
             builder: (context) => LogView(currentUser: userData),
           ),
         );
@@ -132,7 +124,7 @@ class _LoginViewState extends State<LoginView> {
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
-        child: Form( // Bungkus dengan Form untuk validasi
+        child: Form( 
           key: _formKey,
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -145,7 +137,6 @@ class _LoginViewState extends State<LoginView> {
                   border: OutlineInputBorder(),
                   prefixIcon: Icon(Icons.person),
                 ),
-                // Validasi tidak boleh kosong
                 validator: (value) {
                   if (value == null || value.isEmpty) {
                     return 'Username tidak boleh kosong';
@@ -158,13 +149,11 @@ class _LoginViewState extends State<LoginView> {
               // Field Password dengan Show/Hide
               TextFormField(
                 controller: _passController,
-                // 3. View: Show/Hide Password
                 obscureText: _isObscure, 
                 decoration: InputDecoration(
                   labelText: "Password",
                   border: const OutlineInputBorder(),
                   prefixIcon: const Icon(Icons.lock),
-                  // Ikon mata untuk toggle visibility
                   suffixIcon: IconButton(
                     icon: Icon(
                       _isObscure ? Icons.visibility : Icons.visibility_off,
@@ -176,7 +165,6 @@ class _LoginViewState extends State<LoginView> {
                     },
                   ),
                 ),
-                // Validasi tidak boleh kosong
                 validator: (value) {
                   if (value == null || value.isEmpty) {
                     return 'Password tidak boleh kosong';
@@ -191,7 +179,6 @@ class _LoginViewState extends State<LoginView> {
                 width: double.infinity,
                 height: 50,
                 child: ElevatedButton(
-                  // Tombol disabled (null) jika _isLockedOut true
                   onPressed: _isLockedOut ? null : _handleLogin,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: _isLockedOut ? Colors.grey : Colors.blue,

@@ -13,7 +13,6 @@ class LogController {
   final ValueNotifier<List<LogModel>> logsNotifier = ValueNotifier<List<LogModel>>([]);
   late final Box<LogModel> _myBox; 
   
-  // Tambahkan variabel untuk menyimpan listener koneksi
   StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
 
   List<LogModel> get logs => logsNotifier.value;
