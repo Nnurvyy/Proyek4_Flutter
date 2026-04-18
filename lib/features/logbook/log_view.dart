@@ -7,6 +7,7 @@ import 'package:logbook_app/features/logbook/log_editor_page.dart';
 import 'package:intl/intl.dart'; 
 import 'package:intl/date_symbol_data_local.dart'; 
 import '../../services/mongo_service.dart';
+import 'package:logbook_app/features/vision/vision_view.dart'; 
 
 class LogView extends StatefulWidget {
   final dynamic currentUser; 
@@ -220,6 +221,7 @@ class _LogViewState extends State<LogView> {
                   final canSee = (log.authorId == currentUserId) || (log.isPublic == true);
                   return matchesSearch && canSee;
                 }).toList();
+                
                 if (currentLogs.isEmpty) {
                   return RefreshIndicator(
                     onRefresh: _refreshData,
@@ -352,12 +354,36 @@ class _LogViewState extends State<LogView> {
           ),
         ],
       ),
-      floatingActionButton: canCreate 
-        ? FloatingActionButton(
-            onPressed: () => _goToEditor(), 
-            child: const Icon(Icons.add),
-          ) 
-        : null, 
+      
+      // ==========================================
+      // PERBAIKAN: Menggabungkan FloatingActionButton ke dalam Column
+      // ==========================================
+      floatingActionButton: Column(
+        mainAxisAlignment: MainAxisAlignment.end,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          // Tombol Smart-Patrol Vision (Selalu muncul untuk semua role)
+          FloatingActionButton(
+            heroTag: "btnVision", // Wajib ada agar tidak bentrok
+            onPressed: () => Navigator.push(
+              context, 
+              MaterialPageRoute(builder: (context) => const VisionView())
+            ),
+            backgroundColor: Colors.blueGrey,
+            child: const Icon(Icons.camera_alt, color: Colors.white),
+          ),
+          
+          const SizedBox(height: 16), // Spasi antar tombol
+          
+          // Tombol Tambah Catatan (Hanya muncul jika Role diizinkan)
+          if (canCreate)
+            FloatingActionButton(
+              heroTag: "btnAddLog", // Wajib ada
+              onPressed: () => _goToEditor(), 
+              child: const Icon(Icons.add),
+            ),
+        ],
+      ),
     );
   }
 }

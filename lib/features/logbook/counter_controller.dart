@@ -1,63 +1,74 @@
-import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class CounterController {
+  int _counter = 0; // Variabel private (Enkapsulasi)
+  int _step = 1; // default step = 1
 
-  final String username;
+  final List<String> _history = []; // variable riwayat penambahan step
 
-  CounterController(this.username);
+  int get value => _counter; // Getter untuk akses data
+  int get step => _step; // Getter untuk akses nilai step
+  List<String> get history => _history; // Getter akses data riwayat
 
-  int _counter = 0;
-  int _step = 1;
-  List<String> _activityLogs = [];
-
-  List<String> get activityLogs => _activityLogs;
-  int get value => _counter;
-  int get step => _step;
-
-
-  String get _keyCounter => 'counter_$username';
-  String get _keyLogs => 'logs_$username';
-
-  Future<void> loadData() async {
+  // load data dari counter
+  Future<void> loadCounter(String username) async {
     final prefs = await SharedPreferences.getInstance();
-    _counter = prefs.getInt(_keyCounter) ?? 0;
-    _activityLogs = prefs.getStringList(_keyLogs) ?? [];
+    _counter = prefs.getInt("counter_$username") ?? 0;
   }
 
-  Future<void> _saveData() async {
+  // simpan ke storage
+  Future<void> saveCounter(String username) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt(_keyCounter, _counter);
-    await prefs.setStringList(_keyLogs, _activityLogs);
+    await prefs.setInt("counter_$username", _counter);
   }
-  void _addLog(String action){
+
+
+  // Atur nilai step
+  void setStep(int value) {
+    if (value > 0) {
+      _step = value;
+    }
+  }
+
+  // add history counter
+  void _addHistory(String username, String message) {
     DateTime now = DateTime.now();
-    String formattedTime = DateFormat('HH:mm').format(now);
-    String logMessage = "$action pada jam $formattedTime";
-    _activityLogs.insert(0, logMessage);
-    if (_activityLogs.length > 5) {
-      _activityLogs.removeLast();
+    String time =
+        "${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')} "
+        "${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}:${now.second.toString().padLeft(2, '0')}";
+
+    _history.insert(0, "User $username $message pada jam $time");
+
+    if (_history.length > 5) {
+      _history.removeLast();
     }
   }
-  void increment(){
-    _counter+=_step;
-    _addLog("User menambahkan nilai sebesar +$_step");
-    _saveData();
-  } 
 
-  void decrement() {
-    if (_counter > 0) {
+  //void increment() => _counter++;
+  // Increment menggunakan step
+  Future<void> increment(String username) async {
+    _counter += _step;
+    _addHistory(username, "menambah nilai sebesar $_step");
+
+    await saveCounter(username); // simpan counter ke data lokal
+  }
+
+  // Decrement menggunakan step
+  Future<void> decrement(String username) async {
+    if (_counter - _step >= 0) {
       _counter -= _step;
+    } else {
+      _counter = 0;
     }
-    _addLog("User mengurangi nilai sebesar -$_step");
-    _saveData();
-  } 
-  void reset() {
+    _addHistory(username, "mengurangi nilai sebesar $_step");
+
+    await saveCounter(username); // simpan counter ke data lokal
+  }
+
+  Future<void> reset(String username) async {
     _counter = 0;
-    _addLog("User melakukan Reset counter");
-    _saveData();
-  } 
-  void updateStep(double newStep) {
-    _step = newStep.round();
-  } 
+    _addHistory(username, "mereset counter");
+
+    await saveCounter(username); // simpan counter ke data lokal
+  }
 }

@@ -1,7 +1,7 @@
 import 'dart:async'; // Diperlukan untuk Timer
 import 'package:flutter/material.dart';
 import 'package:logbook_app/features/auth/login_controller.dart';
-import 'package:logbook_app/features/logbook/log_view.dart';
+import 'package:logbook_app/features/dashboard/dashboard_view.dart';
 
 class LoginView extends StatefulWidget {
   const LoginView({super.key});
@@ -58,7 +58,7 @@ class _LoginViewState extends State<LoginView> {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (context) => LogView(currentUser: userData),
+            builder: (context) => DashboardView(currentUser: userData),
           ),
         );
       } else {
